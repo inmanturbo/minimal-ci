@@ -1,0 +1,65 @@
+version: "3.7"
+
+services:
+  gitea:
+    image: gitea/gitea:1.12.5
+    #image: gitea/gitea:latest
+    container_name: gitea
+    env_file:
+      - gitea.env
+    restart: always
+    volumes:
+      - ./gitea:/data
+    ports:
+      - "3000:3000"
+      - "2222:22"
+    networks:
+      - appnet
+
+  gitea-db:
+    image: postgres:alpine
+    container_name: gitea-db
+    restart: always
+    volumes:
+      - ./gitea-db:/var/lib/postgresql/data
+    env_file:
+      - drone_db.env
+    networks:
+      - appnet
+
+  drone-server:
+    image: drone/drone:1.9.1
+    container_name: drone-server
+    links:
+      - gitea
+    ports:
+      - 80:80
+      - 9000
+    volumes:
+      - ./drone:/var/lib/drone/
+    restart: always
+    depends_on:
+      - gitea
+    env_file:
+      - drone.env
+    networks:
+      - appnet
+
+  drone-agent:
+    image: drone/agent:1.2.1
+    container_name: drone-agent
+    command: agent
+    env_file:
+      - drone_agent.env
+    restart: always
+    depends_on:
+      - drone-server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./drone-agent:/data
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    name: appnet
